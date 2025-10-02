@@ -1,0 +1,170 @@
+---
+title: Central Limit Theorem with Exponentials and Applied Inference with ToothGrowth
+  Data
+author: "Thomas Ljungberg Kristensen"
+date: "2025-10-02"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Overview
+In this project, we use simulations in R to study the distribution of averages of exponential random variables, illustrating the Central Limit Theorem (CLT). We then analyze the ToothGrowth dataset, performing exploratory analysis and statistical inference to investigate the effect of supplement type and dose on tooth growth in guinea pigs.
+
+## Part I — Simulation: Exponential and the CLT
+The simulation is set up as the exponential distribution with rate 0.2 and 40 observations. See appendix for more details 
+
+```{r setup-sim, echo=FALSE, include=FALSE}
+lambda <- 0.2
+n      <- 40
+nosim  <- 1000
+
+# 1000 sample-means of 40 exponentials
+means_exp <- replicate(nosim, mean(rexp(n, rate = lambda)))
+
+# Theoretical center/variance for the sample mean
+theo_mean <- 1/lambda
+theo_var  <- (1/lambda)^2 / n
+theo_sd   <- sqrt(theo_var)
+
+sim_mean <- mean(means_exp)
+sim_var  <- var(means_exp)
+sim_sd   <- sd(means_exp)
+```
+
+This shows that the theoretical mean is `r signif(theo_mean,4)` and simulated mean of sample means is `r signif(sim_mean,4)`. Theoretical variance of the mean is `r signif(theo_var,4)` (and sd `r signif(theo_sd,4)`);
+simulated variance is `r signif(sim_var,4) ` (and sd `r signif(sim_sd,4)`).
+
+The following figures (see appendix for more information) shows 
+
+1) How variable the sample is (via variance) and compare it to the theoretical variance of the distribution,
+2) Show that the distribution is approximately normal
+
+```{r setup-graph, echo=FALSE}
+par(mfrow=c(1,2))
+
+hist(means_exp, breaks=30, main="Means", xlab="sample mean", border="gray70")
+abline(v = theo_mean, col=2, lwd=2)
+
+hist(means_exp, breaks=30, freq=FALSE, main="Means and Normal Overlay", xlab="sample mean", border="gray70")
+curve(dnorm(x, mean=theo_mean, sd=theo_sd), add=TRUE, lwd=2)
+```
+
+# Part II — ToothGrowth: EDA and Inference
+Plotting the ToothGrowth data, see figures or the appendix for more details, shows that length increases with dose but supplement only appears to do modest changes.
+
+```{r echo=FALSE, include=FALSE}
+data(ToothGrowth)
+TG <- ToothGrowth
+```
+
+```{r echo=FALSE}
+par(mfrow=c(1,2))
+
+boxplot(len ~ supp, data=TG, main="Tooth length by supplement", ylab="len")
+boxplot(len ~ dose, data=TG, main="Tooth length by dose", ylab="len")
+```
+
+Using the Welch t-test to determine p-value and confidence intervals for tooth growth by supplement (see appendix for details)
+
+```{r echo=FALSE, include =FALSE}
+t_supp <- t.test(len ~ supp, data=TG)   # Welch by default
+t_supp
+```
+
+P-value = `r signif(t_supp$p.value,3)`.
+95% Confidence interval for (OJ - VC) difference: `r paste0("[", round(t_supp$conf.int[1],2), ", ", round(t_supp$conf.int[2],2), "]")`.
+
+And p-values and confidence intervals for pairwise comparison for tooth growth by dose, see appendix for details
+
+```{r echo=FALSE, include =FALSE}
+TG$dose <- factor(TG$dose)  # treat as factor
+t_05_1  <- t.test(len ~ dose, data=subset(TG, dose %in% c(0.5,1)))
+t_1_2   <- t.test(len ~ dose, data=subset(TG, dose %in% c(1,2)))
+t_05_2  <- t.test(len ~ dose, data=subset(TG, dose %in% c(0.5,2)))
+```
+
+```{r echo=FALSE}
+list(`0.5 vs 1`=t_05_1$conf.int,
+     `1 vs 2`  =t_1_2$conf.int,
+     `0.5 vs 2`=t_05_2$conf.int)
+```
+
+```{r echo=FALSE}
+c(`p(0.5 vs 1)`=t_05_1$p.value,
+  `p(1 vs 2)`  =t_1_2$p.value,
+  `p(0.5 vs 2)`=t_05_2$p.value)
+```
+## Assumptions
+We are assuming that the observations are independent.
+
+# Conclusions
+For the CLT simulation, we see that means of 40 exponentials center near 5 with variance approx 25/40, and their distribution is approximately normal.
+
+For ToothGrowth, we see strong, statistically significant dose effect on tooth length but the supplement effect is smaller and context-dependent.
+
+# Appendix
+
+## Data - Part I — Simulation: Exponential and the CLT
+```{r}
+lambda <- 0.2
+n      <- 40
+nosim  <- 1000
+
+# 1000 sample-means of 40 exponentials
+means_exp <- replicate(nosim, mean(rexp(n, rate = lambda)))
+
+# Theoretical center/variance for the sample mean
+theo_mean <- 1/lambda
+theo_var  <- (1/lambda)^2 / n
+theo_sd   <- sqrt(theo_var)
+
+sim_mean <- mean(means_exp)
+sim_var  <- var(means_exp)
+sim_sd   <- sd(means_exp)
+```
+
+```{r}
+par(mfrow=c(1,2))
+
+hist(means_exp, breaks=30, main="Means of 40 Exponentials (n=1000)", xlab="sample mean", border="gray70")
+abline(v = theo_mean, col=2, lwd=2)
+
+hist(means_exp, breaks=30, freq=FALSE, main="Means of 40 Exponentials with Normal Overlay", xlab="sample mean", border="gray70")
+curve(dnorm(x, mean=theo_mean, sd=theo_sd), add=TRUE, lwd=2)
+```
+
+# Data Part II — ToothGrowth: EDA and Inference
+```{r}
+data(ToothGrowth)
+TG <- ToothGrowth
+```
+
+```{r}
+par(mfrow=c(1,2))
+
+boxplot(len ~ supp, data=TG, main="Tooth length by supplement", ylab="len")
+boxplot(len ~ dose, data=TG, main="Tooth length by dose", ylab="len")
+```
+
+
+```{r }
+TG$dose <- factor(TG$dose)  # treat as factor
+t_05_1  <- t.test(len ~ dose, data=subset(TG, dose %in% c(0.5,1)))
+t_1_2   <- t.test(len ~ dose, data=subset(TG, dose %in% c(1,2)))
+t_05_2  <- t.test(len ~ dose, data=subset(TG, dose %in% c(0.5,2)))
+```
+
+```{r }
+list(`0.5 vs 1`=t_05_1$conf.int,
+     `1 vs 2`  =t_1_2$conf.int,
+     `0.5 vs 2`=t_05_2$conf.int)
+```
+
+```{r }
+c(`p(0.5 vs 1)`=t_05_1$p.value,
+  `p(1 vs 2)`  =t_1_2$p.value,
+  `p(0.5 vs 2)`=t_05_2$p.value)
+```
